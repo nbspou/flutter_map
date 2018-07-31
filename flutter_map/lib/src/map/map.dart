@@ -20,10 +20,12 @@ class MapControllerImpl implements MapController {
     }
   }
 
+  @override
   void move(LatLng center, double zoom) {
     _state.move(center, zoom);
   }
 
+  @override
   void fitBounds(
     LatLngBounds bounds, {
     FitBoundsOptions options =

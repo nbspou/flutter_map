@@ -8,6 +8,8 @@ import 'package:latlong/latlong.dart';
 
 import 'src/core/point.dart';
 import 'src/geo/crs/crs.dart';
+import 'src/geo/latlng_bounds.dart';
+import 'src/layer/layer.dart';
 import 'src/map/flutter_map_state.dart';
 import 'src/map/map.dart';
 export 'src/layer/layer.dart';
