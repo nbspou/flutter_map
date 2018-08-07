@@ -1,9 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:latlong/latlong.dart';
 import 'package:transparent_image/transparent_image.dart';
 import 'package:tuple/tuple.dart';
-import 'package:quiver/core.dart';
 import 'layer.dart';
 
 import '../core/bounds.dart';
@@ -19,6 +20,11 @@ class TileLayerOptions extends LayerOptions {
   final double zoomOffset;
   final List<String> subdomains;
   final Color backgroundColor;
+  final bool offlineMode;
+
+  /// When panning the map, keep this many rows and columns of tiles before
+  /// unloading them.
+  final int keepBuffer;
   ImageProvider placeholderImage;
   Map<String, String> additionalOptions;
 
@@ -30,8 +36,10 @@ class TileLayerOptions extends LayerOptions {
     this.zoomOffset = 0.0,
     this.additionalOptions = const <String, String>{},
     this.subdomains = const <String>[],
+    this.keepBuffer = 2,
     this.backgroundColor = const Color(0xFFE0E0E0), // grey[300]
     this.placeholderImage,
+    this.offlineMode = false,
   });
 }
 
@@ -57,6 +65,7 @@ class _TileLayerState extends State<TileLayer> {
   Tuple2<double, double> _wrapY;
   double _tileZoom;
   Level _level;
+  StreamSubscription _moveSub;
 
   Map<String, Tile> _tiles = {};
   Map<double, Level> _levels = {};
@@ -64,6 +73,19 @@ class _TileLayerState extends State<TileLayer> {
   void initState() {
     super.initState();
     _resetView();
+    _moveSub = map.onMoved.listen((_) => _handleMove());
+  }
+
+  void dispose() {
+    super.dispose();
+    _moveSub?.cancel();
+  }
+
+  void _handleMove() {
+    setState(() {
+      _pruneTiles();
+      this._resetView();
+    });
   }
 
   String getTileUrl(Coords coords) {
@@ -73,7 +95,8 @@ class _TileLayerState extends State<TileLayer> {
       'z': coords.z.round().toString(),
       's': _getSubdomain(coords)
     };
-    Map<String,String> allOpts = new Map.from(data)..addAll(this.options.additionalOptions);
+    Map<String, String> allOpts = new Map.from(data)
+      ..addAll(this.options.additionalOptions);
     return util.template(this.options.urlTemplate, allOpts);
   }
 
@@ -128,6 +151,24 @@ class _TileLayerState extends State<TileLayer> {
     }
     this._level = level;
     return level;
+  }
+
+  void _pruneTiles() {
+    var center = map.center;
+    var pixelBounds = this._getTiledPixelBounds(center);
+    var tileRange = _pxBoundsToTileRange(pixelBounds);
+    var margin = this.options.keepBuffer ?? 2;
+    var noPruneRange = new Bounds(
+        tileRange.bottomLeft - new Point(margin, -margin),
+        tileRange.topRight + new Point(margin, -margin));
+    for (var tileKey in _tiles.keys) {
+      var tile = _tiles[tileKey];
+      var c = tile.coords;
+      if (c.z != _tileZoom || !noPruneRange.contains(new Point(c.x, c.y))) {
+        tile.current = false;
+      }
+    }
+    _tiles.removeWhere((s, tile) => tile.current == false);
   }
 
   void _setZoomTransform(Level level, LatLng center, double zoom) {
@@ -286,11 +327,7 @@ class _TileLayerState extends State<TileLayer> {
   }
 
   Bounds _getTiledPixelBounds(LatLng center) {
-    var mapZoom = map.zoom;
-    var scale = map.getZoomScale(mapZoom, this._tileZoom);
-    var pixelCenter = map.project(center, this._tileZoom).floor();
-    Point<num> halfSize = map.size / (scale * 2);
-    return new Bounds(pixelCenter - halfSize, pixelCenter + halfSize);
+    return map.getPixelBounds(_tileZoom);
   }
 
   Bounds _pxBoundsToTileRange(Bounds bounds) {
@@ -339,7 +376,9 @@ class _TileLayerState extends State<TileLayer> {
           placeholder: options.placeholderImage != null
               ? options.placeholderImage
               : new MemoryImage(kTransparentImage),
-          image: new NetworkImage(getTileUrl(coords)),
+          image: options.offlineMode == true
+              ? new AssetImage(getTileUrl(coords))
+              : new NetworkImage(getTileUrl(coords)),
           fit: BoxFit.fill,
         ),
       ),
@@ -399,5 +438,5 @@ class Coords<T extends num> extends Point<T> {
     return false;
   }
 
-  int get hashCode => hash3(x, y, z);
+  int get hashCode => hashValues(x.hashCode, y.hashCode, z.hashCode);
 }

@@ -1,4 +1,4 @@
-library leaflet_flutter;
+library flutter_map;
 
 import 'dart:async';
 
@@ -6,12 +6,13 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong/latlong.dart';
 
+import 'flutter_map.dart';
 import 'src/core/point.dart';
 import 'src/geo/crs/crs.dart';
-import 'src/geo/latlng_bounds.dart';
-import 'src/layer/layer.dart';
 import 'src/map/flutter_map_state.dart';
 import 'src/map/map.dart';
+import 'src/plugins/plugin.dart';
+export 'src/plugins/plugin.dart';
 export 'src/layer/layer.dart';
 export 'src/layer/tile_layer.dart';
 export 'src/layer/marker_layer.dart';
@@ -76,7 +77,10 @@ class MapOptions {
   final bool interactive;
   final TapCallback onTap;
   final PositionCallback onPositionChanged;
+  final List<MapPlugin> plugins;
   LatLng center;
+  LatLng swPanBoundary;
+  LatLng nePanBoundary;
 
   MapOptions({
     this.crs: const Epsg3857(),
@@ -89,8 +93,26 @@ class MapOptions {
     this.interactive = true,
     this.onTap,
     this.onPositionChanged,
+    this.plugins = const [],
+    this.swPanBoundary,
+    this.nePanBoundary,
   }) {
     if (center == null) center = new LatLng(50.5, 30.51);
+    assert(!isOutOfBounds(center)); //You cannot start outside pan boundary
+  }
+
+  //if there is a pan boundary, do not cross
+  bool isOutOfBounds(LatLng center) {
+    if (this.swPanBoundary != null && this.nePanBoundary != null) {
+      if (center.latitude < this.swPanBoundary.latitude ||
+          center.latitude > this.nePanBoundary.latitude) {
+        return true;
+      } else if (center.longitude < this.swPanBoundary.longitude ||
+          center.longitude > this.nePanBoundary.longitude) {
+        return true;
+      }
+    }
+    return false;
   }
 }
 
