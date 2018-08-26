@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:latlong/latlong.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../core/center_zoom.dart';
 import '../../flutter_map.dart';

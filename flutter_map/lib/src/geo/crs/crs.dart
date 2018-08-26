@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:tuple/tuple.dart';
-import 'package:latlong/latlong.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../core/bounds.dart';
 import '../../core/point.dart';
