@@ -12,6 +12,6 @@ dependencies:
   flutter:
     sdk: flutter
   latlong2:
-    git: git@github.com:johnpryan/latlong2.git
+    git: https://github.com/johnpryan/latlong2.git
   tuple: ^1.0.0
   transparent_image: ^0.1.0
